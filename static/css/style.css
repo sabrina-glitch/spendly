@@ -507,6 +507,19 @@ a { color: inherit; text-decoration: none; }
     color: var(--ink-muted);
 }
 
+.legal-updated {
+    display: inline-block;
+    margin-top: 1rem;
+    background: var(--accent-light);
+    color: var(--accent);
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 0.35rem 0.85rem;
+    border-radius: 999px;
+}
+
 .legal-card {
     background: var(--paper-card);
     border: 1px solid var(--border);
