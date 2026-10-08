@@ -55,7 +55,7 @@ def test_get_login_redirects_when_signed_in(client):
     resp = client.get("/login")
 
     assert resp.status_code == 302
-    assert resp.headers["Location"].endswith("/")
+    assert resp.headers["Location"].endswith("/profile")
 
 
 @pytest.mark.parametrize("method", ["get", "post"])
@@ -82,7 +82,7 @@ def test_login_success_sets_session(client, demo_user):
     resp = post_login(client)
 
     assert resp.status_code == 302
-    assert resp.headers["Location"].endswith("/")
+    assert resp.headers["Location"].endswith("/profile")
     with client.session_transaction() as sess:
         assert sess["user_id"] == demo_user["id"]
         assert sess["user_name"] == "Demo User"
@@ -90,12 +90,13 @@ def test_login_success_sets_session(client, demo_user):
         assert "password_hash" not in sess
 
 
-def test_login_success_flash_shown_once(client, demo_user):
+def test_login_success_shows_no_welcome_flash(client, demo_user):
     resp = post_login(client, follow_redirects=True)
 
-    assert resp.request.path == "/"
-    assert WELCOME_MESSAGE in resp.get_data(as_text=True)
-    assert WELCOME_MESSAGE not in client.get("/").get_data(as_text=True)
+    assert resp.request.path == "/profile"
+    html = resp.get_data(as_text=True)
+    assert WELCOME_MESSAGE not in html
+    assert 'class="flash-container"' not in html
 
 
 @pytest.mark.parametrize("email", [" DEMO@Spendly.com ", "Demo@SPENDLY.com"])
