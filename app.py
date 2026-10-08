@@ -1,6 +1,7 @@
 import os
 
-from flask import Flask, flash, redirect, render_template, request, url_for
+from flask import Flask, flash, redirect, render_template, request, session, url_for
+from werkzeug.security import check_password_hash
 
 from database.db import create_user, get_user_by_email, init_db, seed_db
 
@@ -26,6 +27,9 @@ DUPLICATE_EMAIL_ERROR = "An account with that email already exists."
 
 @app.route("/register", methods=["GET", "POST"])
 def register():
+    if session.get("user_id"):
+        return redirect(url_for("landing"))
+
     if request.method == "GET":
         return render_template("register.html")
 
@@ -57,9 +61,28 @@ def register():
     return redirect(url_for("login"))
 
 
-@app.route("/login")
+LOGIN_ERROR = "Invalid email or password."
+
+
+@app.route("/login", methods=["GET", "POST"])
 def login():
-    return render_template("login.html")
+    if request.method == "GET":
+        if session.get("user_id"):
+            return redirect(url_for("landing"))
+        return render_template("login.html")
+
+    email = request.form.get("email", "").strip().lower()
+    password = request.form.get("password", "")
+
+    user = get_user_by_email(email) if email and password else None
+    if user is None or not check_password_hash(user["password_hash"], password):
+        return render_template("login.html", error=LOGIN_ERROR, email=email)
+
+    session.clear()
+    session["user_id"] = user["id"]
+    session["user_name"] = user["name"]
+    flash(f"Welcome back, {user['name']}!", "success")
+    return redirect(url_for("landing"))
 
 
 @app.route("/terms")
@@ -72,14 +95,16 @@ def privacy():
     return render_template("privacy.html")
 
 
+@app.route("/logout")
+def logout():
+    session.clear()
+    flash("You have been signed out.", "success")
+    return redirect(url_for("landing"))
+
+
 # ------------------------------------------------------------------ #
 # Placeholder routes — students will implement these                  #
 # ------------------------------------------------------------------ #
-
-@app.route("/logout")
-def logout():
-    return "Logout — coming in Step 3"
-
 
 @app.route("/profile")
 def profile():
