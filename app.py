@@ -68,7 +68,7 @@ LOGIN_ERROR = "Invalid email or password."
 def login():
     if request.method == "GET":
         if session.get("user_id"):
-            return redirect(url_for("landing"))
+            return redirect(url_for("profile"))
         return render_template("login.html")
 
     email = request.form.get("email", "").strip().lower()
@@ -81,8 +81,7 @@ def login():
     session.clear()
     session["user_id"] = user["id"]
     session["user_name"] = user["name"]
-    flash(f"Welcome back, {user['name']}!", "success")
-    return redirect(url_for("landing"))
+    return redirect(url_for("profile"))
 
 
 @app.route("/terms")
@@ -102,13 +101,56 @@ def logout():
     return redirect(url_for("landing"))
 
 
-# ------------------------------------------------------------------ #
-# Placeholder routes — students will implement these                  #
-# ------------------------------------------------------------------ #
+# Hardcoded profile data — Step 5 replaces these with DB queries.
+# Derived from SAMPLE_EXPENSES in database/db.py (total 331.84).
+SAMPLE_PROFILE = {
+    "email": "demo@spendly.com",
+    "member_since": "October 2026",
+}
+
+SAMPLE_STATS = {
+    "total_spent": 331.84,
+    "transaction_count": 8,
+    "top_category": "Bills",
+}
+
+SAMPLE_RECENT_EXPENSES = [
+    {"date": "2026-10-26", "description": None, "category": "Other", "amount": 5.00},
+    {"date": "2026-10-22", "description": "Groceries", "category": "Food", "amount": 38.40},
+    {"date": "2026-10-18", "description": "New shoes", "category": "Shopping", "amount": 64.20},
+    {"date": "2026-10-14", "description": "Movie ticket", "category": "Entertainment", "amount": 15.99},
+    {"date": "2026-10-11", "description": "Pharmacy", "category": "Health", "amount": 30.00},
+]
+
+SAMPLE_CATEGORY_BREAKDOWN = [
+    {"name": "Bills", "amount": 120.75, "pct": 36.4},
+    {"name": "Shopping", "amount": 64.20, "pct": 19.3},
+    {"name": "Food", "amount": 50.90, "pct": 15.3},
+    {"name": "Transport", "amount": 45.00, "pct": 13.6},
+    {"name": "Health", "amount": 30.00, "pct": 9.0},
+    {"name": "Entertainment", "amount": 15.99, "pct": 4.8},
+    {"name": "Other", "amount": 5.00, "pct": 1.5},
+]
+
 
 @app.route("/profile")
 def profile():
-    return "Profile page — coming in Step 4"
+    if not session.get("user_id"):
+        return redirect(url_for("login"))
+
+    user = {"name": session.get("user_name", ""), **SAMPLE_PROFILE}
+    return render_template(
+        "profile.html",
+        user=user,
+        stats=SAMPLE_STATS,
+        recent_expenses=SAMPLE_RECENT_EXPENSES,
+        category_breakdown=SAMPLE_CATEGORY_BREAKDOWN,
+    )
+
+
+# ------------------------------------------------------------------ #
+# Placeholder routes — students will implement these                  #
+# ------------------------------------------------------------------ #
 
 
 @app.route("/expenses/add")

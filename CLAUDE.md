@@ -18,7 +18,8 @@ spendly/
 ├── static/
 │   ├── css/
 │   │   ├── style.css       # Global styles
-│   │   └── landing.css     # Landing-page-only styles
+│   │   ├── landing.css     # Landing-page-only styles
+│   │   └── profile.css     # Profile-page-only styles
 │   └── js/
 │       └── main.js         # Vanilla JS only
 └── requirements.txt
@@ -96,7 +97,7 @@ pytest -s
 | `GET, POST /register` | Implemented — form; POST creates the user and redirects to `/login` |
 | `GET, POST /login` | Implemented — form; POST authenticates and sets `session["user_id"]`, `session["user_name"]` |
 | `GET /logout` | Implemented — clears the session, redirects to `/` |
-| `GET /profile` | Stub — Step 4 |
+| `GET /profile` | Implemented — logged-in only; renders `profile.html` with hardcoded data until Step 5 |
 | `GET /expenses/add` | Stub — Step 7 |
 | `GET /expenses/<id>/edit` | Stub — Step 8 |
 | `GET /expenses/<id>/delete` | Stub — Step 9 |
