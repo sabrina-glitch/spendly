@@ -1,8 +1,11 @@
-from flask import Flask, render_template
+import os
 
-from database.db import get_db, init_db, seed_db
+from flask import Flask, flash, redirect, render_template, request, url_for
+
+from database.db import create_user, get_user_by_email, init_db, seed_db
 
 app = Flask(__name__)
+app.secret_key = os.environ.get("SECRET_KEY", "dev-secret-change-me")
 
 with app.app_context():
     init_db()
@@ -18,9 +21,40 @@ def landing():
     return render_template("landing.html")
 
 
-@app.route("/register")
+DUPLICATE_EMAIL_ERROR = "An account with that email already exists."
+
+
+@app.route("/register", methods=["GET", "POST"])
 def register():
-    return render_template("register.html")
+    if request.method == "GET":
+        return render_template("register.html")
+
+    name = request.form.get("name", "").strip()
+    email = request.form.get("email", "").strip().lower()
+    password = request.form.get("password", "")
+    confirm_password = request.form.get("confirm_password", "")
+
+    _, at, domain = email.partition("@")
+    if not name:
+        error = "Please enter your name."
+    elif not at or "." not in domain:
+        error = "Please enter a valid email address."
+    elif len(password) < 8:
+        error = "Password must be at least 8 characters."
+    elif password != confirm_password:
+        error = "Passwords do not match."
+    elif get_user_by_email(email) is not None:
+        error = DUPLICATE_EMAIL_ERROR
+    elif create_user(name, email, password) is None:
+        error = DUPLICATE_EMAIL_ERROR
+    else:
+        error = None
+
+    if error:
+        return render_template("register.html", error=error, name=name, email=email)
+
+    flash("Account created — please sign in.", "success")
+    return redirect(url_for("login"))
 
 
 @app.route("/login")
