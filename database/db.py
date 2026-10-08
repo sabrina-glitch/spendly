@@ -96,3 +96,34 @@ def seed_db():
             )
     finally:
         conn.close()
+
+
+def get_user_by_email(email):
+    """Return the user row for `email`, or None. Callers normalise the email."""
+    conn = get_db()
+    try:
+        return conn.execute(
+            "SELECT * FROM users WHERE email = ?", (email,)
+        ).fetchone()
+    finally:
+        conn.close()
+
+
+def create_user(name, email, password):
+    """Insert a user with a hashed password and return its id.
+
+    Returns None if the email is already registered.
+    """
+    password_hash = generate_password_hash(password)
+    conn = get_db()
+    try:
+        with conn:
+            cursor = conn.execute(
+                "INSERT INTO users (name, email, password_hash) VALUES (?, ?, ?)",
+                (name, email, password_hash),
+            )
+        return cursor.lastrowid
+    except sqlite3.IntegrityError:
+        return None
+    finally:
+        conn.close()
