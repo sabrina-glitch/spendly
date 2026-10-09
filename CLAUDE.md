@@ -11,7 +11,7 @@ Spendly is a lightweight personal expense tracker built with Flask and SQLite.
 spendly/
 ├── app.py              # All routes — single file, no blueprints
 ├── database/
-│   └── db.py           # SQLite helpers: get_db(), init_db(), seed_db()
+│   └── db.py           # SQLite helpers: get_db(), init_db(), seed_db(), profile query helpers
 ├── templates/
 │   ├── base.html       # Shared layout — all templates must extend this
 │   └── *.html          # One template per page
@@ -97,7 +97,7 @@ pytest -s
 | `GET, POST /register` | Implemented — form; POST creates the user and redirects to `/login` |
 | `GET, POST /login` | Implemented — form; POST authenticates and sets `session["user_id"]`, `session["user_name"]` |
 | `GET /logout` | Implemented — clears the session, redirects to `/` |
-| `GET /profile` | Implemented — logged-in only; renders `profile.html` with hardcoded data until Step 5 |
+| `GET /profile` | Implemented — logged-in only; renders `profile.html` with the user's live data from `database/db.py` |
 | `GET /expenses/add` | Stub — Step 7 |
 | `GET /expenses/<id>/edit` | Stub — Step 8 |
 | `GET /expenses/<id>/delete` | Stub — Step 9 |
@@ -113,6 +113,6 @@ pytest -s
 - **Never put DB logic in route functions** — it belongs in `database/db.py`
 - **Never install new packages** mid-feature without flagging it — keep `requirements.txt` in sync
 - **Never use JS frameworks** — the frontend is intentionally vanilla
-- **`database/db.py` is implemented (Step 1)** — use `get_db()`, `init_db()`, `seed_db()`. Callers must `conn.close()` (`with conn:` only commits). DB file is `spendly.db` in the project root (gitignored); tests redirect it by monkeypatching `database.db.DB_PATH`
+- **`database/db.py` is implemented (Step 1)** — use `get_db()`, `init_db()`, `seed_db()`; profile queries are `get_user_by_id()`, `get_recent_transactions()`, `get_summary_stats()`, `get_category_breakdown()` (Step 5). The navbar name still comes from `session["user_name"]`; the profile header reads the name from the DB. Callers must `conn.close()` (`with conn:` only commits). DB file is `spendly.db` in the project root (gitignored); tests redirect it by monkeypatching `database.db.DB_PATH`
 - **FK enforcement is manual** — SQLite foreign keys are off by default; `get_db()` must run `PRAGMA foreign_keys = ON` on every connection
 - The app runs on **port 5001**, not the Flask default 5000 — don't change this

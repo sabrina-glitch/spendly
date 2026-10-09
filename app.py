@@ -3,7 +3,16 @@ import os
 from flask import Flask, flash, redirect, render_template, request, session, url_for
 from werkzeug.security import check_password_hash
 
-from database.db import create_user, get_user_by_email, init_db, seed_db
+from database.db import (
+    create_user,
+    get_category_breakdown,
+    get_recent_transactions,
+    get_summary_stats,
+    get_user_by_email,
+    get_user_by_id,
+    init_db,
+    seed_db,
+)
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "dev-secret-change-me")
@@ -101,50 +110,32 @@ def logout():
     return redirect(url_for("landing"))
 
 
-# Hardcoded profile data — Step 5 replaces these with DB queries.
-# Derived from SAMPLE_EXPENSES in database/db.py (total 331.84).
-SAMPLE_PROFILE = {
-    "email": "demo@spendly.com",
-    "member_since": "October 2026",
-}
-
-SAMPLE_STATS = {
-    "total_spent": 331.84,
-    "transaction_count": 8,
-    "top_category": "Bills",
-}
-
-SAMPLE_RECENT_EXPENSES = [
-    {"date": "2026-10-26", "description": None, "category": "Other", "amount": 5.00},
-    {"date": "2026-10-22", "description": "Groceries", "category": "Food", "amount": 38.40},
-    {"date": "2026-10-18", "description": "New shoes", "category": "Shopping", "amount": 64.20},
-    {"date": "2026-10-14", "description": "Movie ticket", "category": "Entertainment", "amount": 15.99},
-    {"date": "2026-10-11", "description": "Pharmacy", "category": "Health", "amount": 30.00},
-]
-
-SAMPLE_CATEGORY_BREAKDOWN = [
-    {"name": "Bills", "amount": 120.75, "pct": 36.4},
-    {"name": "Shopping", "amount": 64.20, "pct": 19.3},
-    {"name": "Food", "amount": 50.90, "pct": 15.3},
-    {"name": "Transport", "amount": 45.00, "pct": 13.6},
-    {"name": "Health", "amount": 30.00, "pct": 9.0},
-    {"name": "Entertainment", "amount": 15.99, "pct": 4.8},
-    {"name": "Other", "amount": 5.00, "pct": 1.5},
-]
-
-
 @app.route("/profile")
 def profile():
-    if not session.get("user_id"):
+    user_id = session.get("user_id")
+    if not user_id:
         return redirect(url_for("login"))
 
-    user = {"name": session.get("user_name", ""), **SAMPLE_PROFILE}
+    user = get_user_by_id(user_id)
+    if user is None:
+        session.clear()
+        return redirect(url_for("login"))
+
+    # --- [1] Transaction history ---
+    recent_expenses = get_recent_transactions(user_id)
+
+    # --- [2] Summary stats ---
+    stats = get_summary_stats(user_id)
+
+    # --- [3] Category breakdown ---
+    category_breakdown = get_category_breakdown(user_id)
+
     return render_template(
         "profile.html",
         user=user,
-        stats=SAMPLE_STATS,
-        recent_expenses=SAMPLE_RECENT_EXPENSES,
-        category_breakdown=SAMPLE_CATEGORY_BREAKDOWN,
+        stats=stats,
+        recent_expenses=recent_expenses,
+        category_breakdown=category_breakdown,
     )
 
 
