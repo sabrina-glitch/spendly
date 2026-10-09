@@ -1,5 +1,4 @@
 import re
-import sys
 from pathlib import Path
 
 import pytest
@@ -8,14 +7,20 @@ DEMO_NAME = "Demo User"
 PROFILE_CSS = Path(__file__).resolve().parent.parent / "static" / "css" / "profile.css"
 
 
+@pytest.fixture(autouse=True)
+def seeded(temp_db):
+    """The profile page reads real data, so the demo user (id 1) must exist."""
+    temp_db.seed_db()
+
+
 def login_as(client, user_id=1, name=DEMO_NAME):
     with client.session_transaction() as sess:
         sess["user_id"] = user_id
         sess["user_name"] = name
 
 
-def get_profile_html(client, name=DEMO_NAME):
-    login_as(client, name=name)
+def get_profile_html(client, user_id=1, name=DEMO_NAME):
+    login_as(client, user_id=user_id, name=name)
     resp = client.get("/profile")
     assert resp.status_code == 200
     return resp.get_data(as_text=True)
@@ -46,14 +51,16 @@ def test_profile_renders_for_signed_in_user(client):
     assert "demo@spendly.com" in html
 
 
-def test_profile_uses_session_name(client):
-    html = get_profile_html(client, name="Alice Smith")
-    assert "Alice Smith" in html
+def test_profile_uses_database_name(client, temp_db):
+    user_id = temp_db.create_user("Alice Smith", "alice@example.com", "password123")
+    html = get_profile_html(client, user_id=user_id, name="Stale Session Name")
+    assert 'id="profile-name" class="profile-name">Alice Smith<' in html
     assert ">AS<" in html
 
 
-def test_profile_escapes_user_name(client):
-    html = get_profile_html(client, name="<b>x</b>")
+def test_profile_escapes_user_name(client, temp_db):
+    user_id = temp_db.create_user("<b>x</b>", "x@example.com", "password123")
+    html = get_profile_html(client, user_id=user_id, name="<b>x</b>")
     assert "&lt;b&gt;x&lt;/b&gt;" in html
     assert "<b>x</b>" not in html
 
@@ -80,8 +87,8 @@ def test_profile_stat_cards(client):
 
 def test_profile_renders_rupee_amounts(client):
     html = get_profile_html(client)
-    assert "₹120.75" in html  # breakdown
-    assert "₹38.40" in html   # recent transactions
+    assert "₹120.75" in html  # Bills
+    assert "₹38.40" in html   # Groceries
 
 
 def test_profile_missing_description_shows_dash(client):
@@ -94,14 +101,14 @@ def test_profile_breakdown_sorted_with_bars(client):
     html = get_profile_html(client)
     breakdown = html.split('class="cat-list"', 1)[1]
     assert breakdown.index("Bills") < breakdown.index("Other")
-    assert 'style="width: 36.4%"' in html
+    assert 'style="width: 36%"' in html
 
 
-def test_profile_empty_states(client, monkeypatch):
-    app_module = sys.modules["app"]
-    monkeypatch.setattr(app_module, "SAMPLE_RECENT_EXPENSES", [])
-    monkeypatch.setattr(app_module, "SAMPLE_CATEGORY_BREAKDOWN", [])
-    html = get_profile_html(client)
+def test_profile_empty_states(client, temp_db):
+    user_id = temp_db.create_user("New User", "new@example.com", "password123")
+    html = get_profile_html(client, user_id=user_id, name="New User")
+    assert "₹0.00" in html
+    assert "None recorded yet" in html
     assert "No expenses yet." in html
     assert "No spending to break down yet." in html
 
@@ -129,26 +136,3 @@ def test_navbar_links_to_profile(client):
 
 def test_profile_css_has_no_hex_colours():
     assert not re.search(r"#[0-9a-fA-F]{3,8}\b", PROFILE_CSS.read_text(encoding="utf-8"))
-
-
-# ------------------------------------------------------------------ #
-# Hardcoded data matches the seed                                     #
-# ------------------------------------------------------------------ #
-
-def test_sample_data_matches_seed(app):
-    from database.db import CATEGORIES, SAMPLE_EXPENSES
-
-    app_module = sys.modules["app"]
-    stats = app_module.SAMPLE_STATS
-    breakdown = app_module.SAMPLE_CATEGORY_BREAKDOWN
-    total = round(sum(row[0] for row in SAMPLE_EXPENSES), 2)
-
-    assert stats["total_spent"] == pytest.approx(total)
-    assert stats["transaction_count"] == len(SAMPLE_EXPENSES)
-    assert sum(c["amount"] for c in breakdown) == pytest.approx(total)
-    assert [c["amount"] for c in breakdown] == sorted(
-        (c["amount"] for c in breakdown), reverse=True
-    )
-    assert stats["top_category"] == breakdown[0]["name"]
-    assert all(c["name"] in CATEGORIES for c in breakdown)
-    assert all(e["category"] in CATEGORIES for e in app_module.SAMPLE_RECENT_EXPENSES)

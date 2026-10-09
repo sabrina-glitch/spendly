@@ -1,6 +1,6 @@
 import os
 import sqlite3
-from datetime import date
+from datetime import date, datetime
 
 from werkzeug.security import generate_password_hash
 
@@ -127,3 +127,121 @@ def create_user(name, email, password):
         return None
     finally:
         conn.close()
+
+
+# ------------------------------------------------------------------ #
+# Profile page queries                                                #
+# ------------------------------------------------------------------ #
+
+MONTH_NAMES = (
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December",
+)
+
+
+def get_user_by_id(user_id):
+    """Return {name, email, member_since} for the user, or None if missing."""
+    conn = get_db()
+    try:
+        row = conn.execute(
+            "SELECT name, email, created_at FROM users WHERE id = ?", (user_id,)
+        ).fetchone()
+    finally:
+        conn.close()
+
+    if row is None:
+        return None
+
+    member_since = ""
+    if row["created_at"]:
+        try:
+            joined = datetime.strptime(row["created_at"][:10], "%Y-%m-%d")
+            member_since = f"{MONTH_NAMES[joined.month - 1]} {joined.year}"
+        except ValueError:
+            pass
+
+    return {"name": row["name"], "email": row["email"], "member_since": member_since}
+
+
+# --- [1] Transaction history --- #
+
+def get_recent_transactions(user_id, limit=10):
+    """Return the user's newest expenses as dicts: date, description, category, amount."""
+    conn = get_db()
+    try:
+        rows = conn.execute(
+            "SELECT date, description, category, amount FROM expenses "
+            "WHERE user_id = ? ORDER BY date DESC, id DESC LIMIT ?",
+            (user_id, limit),
+        ).fetchall()
+    finally:
+        conn.close()
+    return [
+        {
+            "date": r["date"],
+            "description": r["description"],
+            "category": r["category"],
+            "amount": round(r["amount"], 2),
+        }
+        for r in rows
+    ]
+
+
+# --- [2] Summary stats --- #
+
+def get_summary_stats(user_id):
+    """Return {total_spent, transaction_count, top_category} for the user."""
+    conn = get_db()
+    try:
+        totals = conn.execute(
+            "SELECT COALESCE(SUM(amount), 0) AS total, COUNT(*) AS n "
+            "FROM expenses WHERE user_id = ?",
+            (user_id,),
+        ).fetchone()
+        top_row = conn.execute(
+            "SELECT category FROM expenses WHERE user_id = ? "
+            "GROUP BY category "
+            "ORDER BY ROUND(SUM(amount), 2) DESC, category ASC LIMIT 1",
+            (user_id,),
+        ).fetchone()
+    finally:
+        conn.close()
+    return {
+        "total_spent": round(totals["total"], 2),
+        "transaction_count": totals["n"],
+        "top_category": top_row["category"] if top_row else "—",
+    }
+
+
+# --- [3] Category breakdown --- #
+
+def get_category_breakdown(user_id):
+    """Return [{name, amount, pct}] sorted by amount desc; integer pcts sum to 100."""
+    conn = get_db()
+    try:
+        rows = conn.execute(
+            "SELECT category, ROUND(SUM(amount), 2) AS total FROM expenses "
+            "WHERE user_id = ? GROUP BY category "
+            "ORDER BY ROUND(SUM(amount), 2) DESC, category ASC",
+            (user_id,),
+        ).fetchall()
+    finally:
+        conn.close()
+
+    if not rows:
+        return []
+
+    amounts = [round(r["total"], 2) for r in rows]
+    grand = sum(amounts)
+    if grand <= 0:
+        return [
+            {"name": r["category"], "amount": a, "pct": 0}
+            for r, a in zip(rows, amounts)
+        ]
+
+    pcts = [round(a / grand * 100) for a in amounts]
+    pcts[0] += 100 - sum(pcts)
+    return [
+        {"name": r["category"], "amount": a, "pct": p}
+        for r, a, p in zip(rows, amounts, pcts)
+    ]
