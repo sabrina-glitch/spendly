@@ -123,7 +123,9 @@
 }
 
 .profile-add-btn:focus-visible,
-.tx-empty a:focus-visible {
+.tx-empty a:focus-visible,
+.filter-pill:focus-visible,
+.filter-btn:focus-visible {
     outline: 2px solid var(--accent);
     outline-offset: 2px;
 }
@@ -187,6 +189,99 @@
     font-size: 0.78rem;
     color: var(--ink-faint);
     font-variant-numeric: tabular-nums;
+}
+
+/* --- Date filter --- */
+
+.profile-filter {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 0.75rem 1.25rem;
+    padding: 0.9rem 1.25rem;
+}
+
+.filter-presets {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+}
+
+.filter-pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.35rem 0.85rem;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: var(--paper);
+    color: var(--ink-soft);
+    font-size: 0.8rem;
+    font-weight: 500;
+    text-decoration: none;
+    transition: background 0.2s, border-color 0.2s, color 0.2s;
+}
+
+.filter-pill:hover {
+    border-color: var(--ink);
+    color: var(--ink);
+}
+
+.filter-pill.is-active {
+    background: var(--accent-light);
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+.filter-form {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 0.6rem;
+}
+
+.filter-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    min-width: 0;
+}
+
+.filter-field label {
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-muted);
+}
+
+.profile-filter .form-input {
+    width: 10.5rem;
+    min-width: 0;
+    padding: 0.45rem 0.6rem;
+    font-size: 0.85rem;
+}
+
+.filter-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.filter-btn {
+    padding: 0.5rem 1rem;
+    font-size: 0.85rem;
+    text-align: center;
+    text-decoration: none;
+}
+
+.filter-error {
+    flex-basis: 100%;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid var(--danger-border);
+    border-radius: var(--radius-sm);
+    background: var(--danger-light);
+    color: var(--danger);
+    font-size: 0.82rem;
 }
 
 /* --- Sections grid --- */
@@ -437,6 +532,13 @@
     .stat-label { font-size: 0.65rem; }
     .stat-value { font-size: 1.15rem; }
     .stat-hint { display: none; }
+
+    .profile-filter { padding: 1rem; }
+    .filter-form,
+    .filter-actions { width: 100%; }
+    .filter-field { flex: 1 1 8rem; }
+    .profile-filter .form-input { width: 100%; }
+    .filter-btn { flex: 1; }
 
     .tx-table { min-width: 460px; }
 }
