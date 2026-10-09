@@ -163,16 +163,38 @@ def get_user_by_id(user_id):
     return {"name": row["name"], "email": row["email"], "member_since": member_since}
 
 
+def _date_range_clause(start_date, end_date):
+    """Return (sql, params) narrowing `expenses.date` to inclusive ISO bounds.
+
+    Only the fixed literals below are concatenated into SQL; the bounds
+    themselves are always bound as `?` parameters. A None bound is skipped.
+    """
+    sql, params = "", []
+    if start_date is not None:
+        sql += " AND date >= ?"
+        params.append(start_date)
+    if end_date is not None:
+        sql += " AND date <= ?"
+        params.append(end_date)
+    return sql, params
+
+
 # --- [1] Transaction history --- #
 
-def get_recent_transactions(user_id, limit=10):
-    """Return the user's newest expenses as dicts: date, description, category, amount."""
+def get_recent_transactions(user_id, limit=10, start_date=None, end_date=None):
+    """Return the user's newest expenses as dicts: date, description, category, amount.
+
+    `start_date` / `end_date` are optional inclusive ISO (YYYY-MM-DD) bounds.
+    """
+    range_sql, range_params = _date_range_clause(start_date, end_date)
     conn = get_db()
     try:
         rows = conn.execute(
             "SELECT date, description, category, amount FROM expenses "
-            "WHERE user_id = ? ORDER BY date DESC, id DESC LIMIT ?",
-            (user_id, limit),
+            "WHERE user_id = ?"
+            + range_sql
+            + " ORDER BY date DESC, id DESC LIMIT ?",
+            (user_id, *range_params, limit),
         ).fetchall()
     finally:
         conn.close()
@@ -189,20 +211,26 @@ def get_recent_transactions(user_id, limit=10):
 
 # --- [2] Summary stats --- #
 
-def get_summary_stats(user_id):
-    """Return {total_spent, transaction_count, top_category} for the user."""
+def get_summary_stats(user_id, start_date=None, end_date=None):
+    """Return {total_spent, transaction_count, top_category} for the user.
+
+    `start_date` / `end_date` are optional inclusive ISO (YYYY-MM-DD) bounds.
+    """
+    range_sql, range_params = _date_range_clause(start_date, end_date)
     conn = get_db()
     try:
         totals = conn.execute(
             "SELECT COALESCE(SUM(amount), 0) AS total, COUNT(*) AS n "
-            "FROM expenses WHERE user_id = ?",
-            (user_id,),
+            "FROM expenses WHERE user_id = ?"
+            + range_sql,
+            (user_id, *range_params),
         ).fetchone()
         top_row = conn.execute(
-            "SELECT category FROM expenses WHERE user_id = ? "
-            "GROUP BY category "
-            "ORDER BY ROUND(SUM(amount), 2) DESC, category ASC LIMIT 1",
-            (user_id,),
+            "SELECT category FROM expenses WHERE user_id = ?"
+            + range_sql
+            + " GROUP BY category"
+            " ORDER BY ROUND(SUM(amount), 2) DESC, category ASC LIMIT 1",
+            (user_id, *range_params),
         ).fetchone()
     finally:
         conn.close()
@@ -215,15 +243,21 @@ def get_summary_stats(user_id):
 
 # --- [3] Category breakdown --- #
 
-def get_category_breakdown(user_id):
-    """Return [{name, amount, pct}] sorted by amount desc; integer pcts sum to 100."""
+def get_category_breakdown(user_id, start_date=None, end_date=None):
+    """Return [{name, amount, pct}] sorted by amount desc; integer pcts sum to 100.
+
+    `start_date` / `end_date` are optional inclusive ISO (YYYY-MM-DD) bounds.
+    """
+    range_sql, range_params = _date_range_clause(start_date, end_date)
     conn = get_db()
     try:
         rows = conn.execute(
             "SELECT category, ROUND(SUM(amount), 2) AS total FROM expenses "
-            "WHERE user_id = ? GROUP BY category "
-            "ORDER BY ROUND(SUM(amount), 2) DESC, category ASC",
-            (user_id,),
+            "WHERE user_id = ?"
+            + range_sql
+            + " GROUP BY category"
+            " ORDER BY ROUND(SUM(amount), 2) DESC, category ASC",
+            (user_id, *range_params),
         ).fetchall()
     finally:
         conn.close()

@@ -49,7 +49,7 @@
                         <p class="stat-label">Total spent</p>
                     </div>
                     <p class="stat-value">₹{{ "%.2f"|format(stats.total_spent) }}</p>
-                    <p class="stat-hint">All recorded expenses</p>
+                    <p class="stat-hint">{{ range_label }}</p>
                 </div>
 
                 <div class="profile-card stat-card">
@@ -82,6 +82,37 @@
             </section>
         </div>
 
+        <section class="profile-card profile-filter" aria-labelledby="filter-heading">
+            <h2 id="filter-heading" class="profile-sr-only">Filter by date</h2>
+            <div class="filter-presets" role="group" aria-label="Quick ranges">
+                {% for p in presets %}
+                <a href="{{ url_for('profile', start_date=p.start_date, end_date=today) }}"
+                   class="filter-pill{% if active_preset == p.key %} is-active{% endif %}"
+                   {% if active_preset == p.key %}aria-current="true"{% endif %}>{{ p.label }}</a>
+                {% endfor %}
+                <a href="{{ url_for('profile') }}"
+                   class="filter-pill{% if active_preset == 'all' %} is-active{% endif %}"
+                   {% if active_preset == 'all' %}aria-current="true"{% endif %}>All time</a>
+            </div>
+            <form class="filter-form" method="get" action="{{ url_for('profile') }}">
+                <div class="filter-field">
+                    <label for="filter-start">From</label>
+                    <input type="date" id="filter-start" name="start_date" class="form-input" value="{{ start_date }}">
+                </div>
+                <div class="filter-field">
+                    <label for="filter-end">To</label>
+                    <input type="date" id="filter-end" name="end_date" class="form-input" value="{{ end_date }}">
+                </div>
+                <div class="filter-actions">
+                    <button type="submit" class="btn-primary filter-btn">Apply</button>
+                    <a href="{{ url_for('profile') }}" class="btn-ghost filter-btn">Clear</a>
+                </div>
+            </form>
+            {% if filter_error %}
+            <p class="filter-error" role="alert">{{ filter_error }}</p>
+            {% endif %}
+        </section>
+
         <div class="profile-grid">
             <section class="profile-card profile-section" aria-labelledby="tx-heading">
                 <div class="section-title-row">
@@ -111,8 +142,13 @@
                             {% else %}
                             <tr>
                                 <td colspan="4" class="tx-empty">
+                                    {% if is_filtered %}
+                                    <p class="tx-empty-title">No expenses in this period.</p>
+                                    <a href="{{ url_for('profile') }}">Show all time</a>
+                                    {% else %}
                                     <p class="tx-empty-title">No expenses yet.</p>
                                     <a href="{{ url_for('add_expense') }}">Add your first expense</a>
+                                    {% endif %}
                                 </td>
                             </tr>
                             {% endfor %}
@@ -147,7 +183,13 @@
                     {% endfor %}
                 </ul>
                 {% else %}
-                <p class="cat-empty">No spending to break down yet.</p>
+                <p class="cat-empty">
+                    {% if is_filtered %}
+                    No spending in this period.
+                    {% else %}
+                    No spending to break down yet.
+                    {% endif %}
+                </p>
                 {% endif %}
             </section>
         </div>
